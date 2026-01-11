@@ -4,7 +4,7 @@ from google import genai
 from google.genai.types import GenerateContentConfig
 
 load_dotenv()
-# Create Gemini client
+
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 
@@ -31,7 +31,7 @@ Rules:
   "Information not found in the document."
 
 Answering guidelines:
-- Provide a detailed and well-explained answer
+- Provide a well-explained answer under the token limit of 1000 tokens
 - Break the answer into logical paragraphs or bullet points
 - Clearly explain relationships, causes, or implications if mentioned
 - Cite relevant pages using (Page X)
@@ -45,6 +45,7 @@ Question:
 Answer:
 """
 
+
 def answer_question(chunks, question: str):
     context = _build_context(chunks)
     prompt = _build_prompt(context, question)
@@ -54,29 +55,26 @@ def answer_question(chunks, question: str):
         contents=prompt,
         config=GenerateContentConfig(
             temperature=0.2,
-            max_output_tokens=512
+            max_output_tokens=1000,
         )
     )
 
     return response.text
 
 
-def generate_document_summary(chunks):
-    context = _build_context(chunks[:10])
-
+def summarize_answer(answer_question: str, max_tokens: int = 300):
     prompt = f"""
-Using ONLY the information in the context below, generate a clear and
-concise summary of the document.
+Summarize the answer below.
 
-Guidelines:
-- Do NOT add external knowledge
-- Do NOT assume intent or audience
-- Focus on key themes, risks, and findings
-- Use bullet points (5–8 bullets)
-- If information is missing, do not invent it
+Rules:
+- Use ONLY the content provided
+- Do NOT add new information
+- Preserve key facts and numbers
+- Keep citations if present
+- Be concise and clear
 
-Context:
-{context}
+Answer:
+{answer_question}
 
 Summary:
 """
@@ -84,10 +82,10 @@ Summary:
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=prompt,
-        config={
-            "temperature": 0.2,
-            "max_output_tokens": 400,
-        }
+        config=GenerateContentConfig(
+            temperature=0.2,
+            max_output_tokens=max_tokens,
+        )
     )
 
     return response.text
