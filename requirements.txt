@@ -1,0 +1,6 @@
+pymupdf
+pdfplumber
+camelot-py[cv]
+pytesseract
+Pillow
+opencv-python
