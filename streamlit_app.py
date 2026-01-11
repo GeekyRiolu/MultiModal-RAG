@@ -9,26 +9,24 @@ from embeddings.embedder import Embedder
 from vectorstore.faiss_store import FAISSStore
 from rag.retriever import Retriever
 from rag.hybrid_retriever import HybridRetriever
-from rag.qa_chain import (
-    answer_question,
-    summarize_answer,
-)
+from rag.qa_chain import answer_question
 
 # ------------------------------------------------
-# Page config
+# Page Config
 # ------------------------------------------------
 st.set_page_config(
     page_title="Multi-Modal RAG Chat",
     layout="wide",
 )
 
-st.title("💬 Multi-Modal Document Chat (Hybrid RAG)")
+st.title("💬 Multi-Modal Document Chat")
 st.caption(
-    "Ask detailed questions over documents containing text, tables, and images (OCR)."
+    "Chat with documents containing **text, tables, charts, and images (OCR)** "
+    "using **Hybrid Retrieval**."
 )
 
 # ------------------------------------------------
-# Session state
+# Session State Initialization
 # ------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -39,13 +37,8 @@ if "retriever" not in st.session_state:
 if "chunks" not in st.session_state:
     st.session_state.chunks = None
 
-if "last_answer" not in st.session_state:
-    st.session_state.last_answer = None
-    
-if "last_summary" not in st.session_state:
-    st.session_state.last_summary = None
 # ------------------------------------------------
-# Sidebar — Upload
+# Sidebar — Upload & Controls
 # ------------------------------------------------
 with st.sidebar:
     st.header("📄 Document")
@@ -58,55 +51,46 @@ with st.sidebar:
                 tmp.write(uploaded_file.read())
                 pdf_path = tmp.name
 
+            # ---- Ingestion + Chunking ----
             docs = ingest_document(pdf_path)
             chunks = chunk_documents(docs)
 
+            # ---- Embeddings + FAISS ----
             embedder = Embedder()
             embeddings = embedder.embed([c.content for c in chunks])
 
             store = FAISSStore(dim=len(embeddings[0]))
             store.add(embeddings, chunks)
 
-            dense = Retriever(store, embedder)
-            retriever = HybridRetriever(
-                dense_retriever=dense,
+            # ---- Hybrid Retriever ----
+            dense_retriever = Retriever(store, embedder)
+            hybrid_retriever = HybridRetriever(
+                dense_retriever=dense_retriever,
                 chunks=chunks,
-                top_k=5,
+                top_k=5
             )
 
-            st.session_state.retriever = retriever
+            # ---- Save to session ----
+            st.session_state.retriever = hybrid_retriever
             st.session_state.chunks = chunks
             st.session_state.messages = []
-            st.session_state.last_answer = None
 
-        st.success("✅ Document indexed")
+        st.success("✅ Document indexed with Hybrid Retrieval")
 
     show_sources = st.checkbox("Show retrieved context")
 
     if st.button("🧹 Clear Chat"):
         st.session_state.messages = []
-        st.session_state.last_answer = None
-
-    if st.session_state.messages:
-        chat_md = "\n\n".join(
-            f"**{m['role'].upper()}**:\n{m['content']}"
-            for m in st.session_state.messages
-        )
-        st.download_button(
-            "⬇️ Export Chat",
-            chat_md,
-            file_name="chat_history.md",
-        )
 
 # ------------------------------------------------
-# Chat history
+# Chat History
 # ------------------------------------------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # ------------------------------------------------
-# Chat input
+# Chat Input
 # ------------------------------------------------
 if st.session_state.retriever:
     user_input = st.chat_input("Ask a question about the document...")
@@ -121,12 +105,11 @@ if st.session_state.retriever:
 
         # ---- Assistant message ----
         with st.chat_message("assistant"):
-            with st.spinner("Retrieving and generating answer..."):
+            with st.spinner("Retrieving with Hybrid RAG..."):
                 retrieved_chunks = st.session_state.retriever.retrieve(user_input)
                 answer = answer_question(retrieved_chunks, user_input)
 
                 st.markdown(answer)
-                st.session_state.last_answer = answer
 
                 if show_sources:
                     st.markdown("---")
@@ -141,23 +124,5 @@ if st.session_state.retriever:
             {"role": "assistant", "content": answer}
         )
 
-# ------------------------------------------------
-# Summarize last answer (NO re-retrieval)
-# ------------------------------------------------
-if st.session_state.last_answer:
-    st.markdown("---")
-
-    if st.button("✂️ Summarize last answer"):
-        with st.spinner("Summarizing answer..."):
-            st.session_state.last_summary = summarize_answer(
-                st.session_state.last_answer
-            )
-
-if st.session_state.last_summary:
-    with st.chat_message("assistant"):
-        st.markdown(st.session_state.last_summary)
-
-    st.session_state.messages.append(
-        {"role": "assistant", "content": st.session_state.last_summary}
-    )
-
+else:
+    st.info("⬅️ Upload a PDF from the sidebar to start chatting.")
