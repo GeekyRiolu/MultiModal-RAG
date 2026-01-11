@@ -128,7 +128,7 @@ pip install -r requirements.txt
 
 ### 3️⃣ Set Gemini API Key
 
-Inside .env.example set up your gemini api key
+Inside .env.example set up your gemini api key and rename your file to .env
 ```bash
 GOOGLE_API_KEY="your_api_key_here"
 ```
