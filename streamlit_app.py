@@ -1,73 +1,128 @@
-import streamlit as st
-import tempfile
+import sys
 import os
+import tempfile
+import streamlit as st
 
 from ingestion import ingest_document
 from chunking.chunker import chunk_documents
 from embeddings.embedder import Embedder
 from vectorstore.faiss_store import FAISSStore
 from rag.retriever import Retriever
+from rag.hybrid_retriever import HybridRetriever
 from rag.qa_chain import answer_question
 
-st.set_page_config(page_title="Multi-Modal RAG QA", layout="wide")
-
-st.title("📄 Multi-Modal Document QA (RAG)")
-st.write(
-    "Ask questions over documents containing **text, tables, and images (OCR)**."
+# ------------------------------------------------
+# Page Config
+# ------------------------------------------------
+st.set_page_config(
+    page_title="Multi-Modal RAG Chat",
+    layout="wide",
 )
 
-# Session state
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
+st.title("💬 Multi-Modal Document Chat")
+st.caption(
+    "Chat with documents containing **text, tables, charts, and images (OCR)** "
+    "using **Hybrid Retrieval**."
+)
+
+# ------------------------------------------------
+# Session State Initialization
+# ------------------------------------------------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+if "retriever" not in st.session_state:
     st.session_state.retriever = None
-    st.session_state.embedder = None
+
+if "chunks" not in st.session_state:
     st.session_state.chunks = None
 
-# ---- Upload PDF ----
-uploaded_file = st.file_uploader("Upload a PDF document", type=["pdf"])
+# ------------------------------------------------
+# Sidebar — Upload & Controls
+# ------------------------------------------------
+with st.sidebar:
+    st.header("📄 Document")
 
-if uploaded_file:
-    with st.spinner("Processing document..."):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            tmp.write(uploaded_file.read())
-            pdf_path = tmp.name
+    uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
 
-        # Ingestion + chunking
-        docs = ingest_document(pdf_path)
-        chunks = chunk_documents(docs)
+    if uploaded_file:
+        with st.spinner("Processing document..."):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(uploaded_file.read())
+                pdf_path = tmp.name
 
-        # Embeddings + FAISS
-        embedder = Embedder()
-        embeddings = embedder.embed([c.content for c in chunks])
+            # ---- Ingestion + Chunking ----
+            docs = ingest_document(pdf_path)
+            chunks = chunk_documents(docs)
 
-        store = FAISSStore(dim=len(embeddings[0]))
-        store.add(embeddings, chunks)
+            # ---- Embeddings + FAISS ----
+            embedder = Embedder()
+            embeddings = embedder.embed([c.content for c in chunks])
 
-        retriever = Retriever(store, embedder)
+            store = FAISSStore(dim=len(embeddings[0]))
+            store.add(embeddings, chunks)
 
-        # Save in session
-        st.session_state.vector_store = store
-        st.session_state.retriever = retriever
-        st.session_state.embedder = embedder
-        st.session_state.chunks = chunks
+            # ---- Hybrid Retriever ----
+            dense_retriever = Retriever(store, embedder)
+            hybrid_retriever = HybridRetriever(
+                dense_retriever=dense_retriever,
+                chunks=chunks,
+                top_k=5
+            )
 
-    st.success("✅ Document processed successfully!")
+            # ---- Save to session ----
+            st.session_state.retriever = hybrid_retriever
+            st.session_state.chunks = chunks
+            st.session_state.messages = []
 
-# ---- Question Answering ----
+        st.success("✅ Document indexed with Hybrid Retrieval")
+
+    show_sources = st.checkbox("Show retrieved context")
+
+    if st.button("🧹 Clear Chat"):
+        st.session_state.messages = []
+
+# ------------------------------------------------
+# Chat History (ChatGPT-style)
+# ------------------------------------------------
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# ------------------------------------------------
+# Chat Input
+# ------------------------------------------------
 if st.session_state.retriever:
-    question = st.text_input("Ask a question about the document:")
+    user_input = st.chat_input("Ask a question about the document...")
 
-    if question:
-        with st.spinner("Retrieving and generating answer..."):
-            retrieved_chunks = st.session_state.retriever.retrieve(question)
-            answer = answer_question(retrieved_chunks, question)
+    if user_input:
+        # ---- User message ----
+        st.session_state.messages.append(
+            {"role": "user", "content": user_input}
+        )
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-        st.subheader("📌 Answer")
-        st.write(answer)
+        # ---- Assistant message ----
+        with st.chat_message("assistant"):
+            with st.spinner("Retrieving with Hybrid RAG..."):
+                retrieved_chunks = st.session_state.retriever.retrieve(user_input)
+                answer = answer_question(retrieved_chunks, user_input)
 
-        # Optional: show retrieved sources
-        with st.expander("🔍 Retrieved Context (for transparency)"):
-            for c in retrieved_chunks:
-                st.markdown(
-                    f"**Page {c.page} | {c.modality.upper()}**\n\n{c.content[:500]}"
-                )
+                st.markdown(answer)
+
+                if show_sources:
+                    st.markdown("---")
+                    st.markdown("**🔍 Retrieved Context**")
+                    for c in retrieved_chunks:
+                        st.markdown(
+                            f"- **Page {c.page} | {c.modality.upper()}**: "
+                            f"{c.content[:200]}..."
+                        )
+
+        st.session_state.messages.append(
+            {"role": "assistant", "content": answer}
+        )
+
+else:
+    st.info("⬅️ Upload a PDF from the sidebar to start chatting.")
