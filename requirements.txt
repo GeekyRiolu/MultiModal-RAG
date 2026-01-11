@@ -1,6 +1,29 @@
+# Core
+
+python-dotenv
+numpy==1.26.4 #conflict with opencv-python
+
+# PDF & Document Parsing
+
 pymupdf
 pdfplumber
 camelot-py[cv]
+
+# Image & OCR
+
 pytesseract
 Pillow
-opencv-python
+opencv-python==4.8.1.78 #conflict with numpy
+
+# Embeddings (CPU ONLY)
+
+sentence-transformers
+torch==2.2.2
+
+# Vector Store
+
+faiss-cpu
+
+# UI (later)
+
+streamlit
