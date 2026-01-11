@@ -19,14 +19,22 @@ def _build_context(chunks):
 
 def _build_prompt(context: str, question: str):
     return f"""
-You are a document analysis assistant.
+You are a document question-answering system.
 
-STRICT RULES:
-- Answer ONLY using the provided context.
+Answer the question using ONLY the information provided in the context.
+
+Rules:
+- Base every statement strictly on the context
+- Do NOT use outside knowledge
+- Do NOT speculate
 - If the answer is not present, say:
   "Information not found in the document."
-- Cite sources using (Page X).
-- Do NOT use external knowledge.
+
+Answering guidelines:
+- Provide a detailed and well-explained answer
+- Break the answer into logical paragraphs or bullet points
+- Clearly explain relationships, causes, or implications if mentioned
+- Cite relevant pages using (Page X)
 
 Context:
 {context}
@@ -36,7 +44,6 @@ Question:
 
 Answer:
 """
-
 
 def answer_question(chunks, question: str):
     context = _build_context(chunks)
@@ -49,6 +56,38 @@ def answer_question(chunks, question: str):
             temperature=0.2,
             max_output_tokens=512
         )
+    )
+
+    return response.text
+
+
+def generate_document_summary(chunks):
+    context = _build_context(chunks[:10])
+
+    prompt = f"""
+Using ONLY the information in the context below, generate a clear and
+concise summary of the document.
+
+Guidelines:
+- Do NOT add external knowledge
+- Do NOT assume intent or audience
+- Focus on key themes, risks, and findings
+- Use bullet points (5–8 bullets)
+- If information is missing, do not invent it
+
+Context:
+{context}
+
+Summary:
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=prompt,
+        config={
+            "temperature": 0.2,
+            "max_output_tokens": 400,
+        }
     )
 
     return response.text
