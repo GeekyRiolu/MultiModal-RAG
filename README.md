@@ -70,6 +70,49 @@ MultiModal-RAG/
 
 ## ⚙️ Setup Instructions
 
+> ⚠️ **Important: Python Version Requirement**
+
+This project **requires Python 3.11.x**.
+Python **3.14 is NOT supported** due to incompatibilities with:
+
+* `torch`
+* `sentence-transformers`
+* `faiss`
+* `numpy` (binary extension mismatch)
+
+Attempting to run this project on Python 3.14 will result in:
+
+* Torch install failures
+* NumPy runtime errors
+* Broken embedding generation
+
+---
+
+### ✅ Supported Python Version
+
+```
+Python 3.11.x  (recommended: 3.11.9)
+```
+
+---
+
+### 1️⃣ Install Python 3.11 Using `pyenv` (Recommended)
+
+If you already have `pyenv` installed:
+
+```bash
+pyenv install 3.11.9
+pyenv local 3.11.9
+```
+
+Verify:
+
+```bash
+python --version
+# Python 3.11.9
+```
+
+
 ### 1️⃣ Create Virtual Environment
 
 ```bash
