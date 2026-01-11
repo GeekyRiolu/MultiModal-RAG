@@ -202,11 +202,63 @@ The system prioritizes **faithfulness, explainability, and modularity**.
 
 ## 📈 Bonus Extensions (Planned)
 
-* Hybrid retrieval (dense + keyword with RRF)
-* Executive summary / briefing generation
-* Retrieval evaluation utilities
+Below is a **clean, ready-to-paste README section** covering **ONLY the two bonus tracks you implemented**:
+
+* **Reciprocal Rank Fusion (RRF)–based Hybrid Retrieval**
+* **Evaluation Dashboard (retrieval metrics + latency)**
+
+You can **copy–paste this directly** into your README under a section like **“Bonus Features”** or **“Extensions”**.
 
 ---
+
+## 🚀 Bonus Track: Hybrid Retrieval & Evaluation Dashboard
+
+### 1. Hybrid Retrieval using Reciprocal Rank Fusion (RRF)
+
+To improve retrieval robustness across heterogeneous document content, the system implements **Hybrid Retrieval** by combining dense vector search with keyword-based matching using **Reciprocal Rank Fusion (RRF)**.
+
+Dense retrieval captures semantic similarity between queries and document chunks, while keyword-based retrieval improves recall for exact terms, numerical references, table headers, and OCR-extracted text. RRF merges these ranked lists by assigning each chunk a fused score based on its rank position in each retrieval method, ensuring that highly relevant results from either method are retained.
+
+**Key benefits:**
+
+* Improved recall for table and OCR content
+* Robust performance across semantic and lexical queries
+* Simple, deterministic fusion strategy suitable for evaluation
+
+---
+
+### 2. Integrated Evaluation Dashboard (Retrieval Metrics & Latency)
+
+An **evaluation dashboard** is integrated directly into the application to provide transparent insights into system performance. Since labeled relevance data is not available, the dashboard reports **proxy retrieval metrics** and **latency measurements**, which are standard in Retrieval-Augmented Generation (RAG) systems.
+
+The dashboard is updated on every query and includes:
+
+**Retrieval Metrics**
+
+* Number of retrieved chunks (`top-k`)
+* Distribution of retrieved modalities (text / table / OCR)
+* Number of unique source pages
+* Average chunk length
+
+**Latency Metrics**
+
+* Retrieval latency (hybrid retrieval time)
+* Generation latency (LLM response time)
+
+**Answer Metrics**
+
+* Token length of the generated answer
+
+These metrics help diagnose retrieval behavior, measure system efficiency, and ensure consistent performance without re-running retrieval or generation unnecessarily.
+
+**Key benefits:**
+
+* Real-time visibility into RAG performance
+* No requirement for labeled datasets
+* Lightweight and non-intrusive to the core pipeline
+
+---
+
 
 ## 🏁 Summary
 
