@@ -27,3 +27,5 @@ faiss-cpu
 # UI (later)
 
 streamlit
+
+google-genai
